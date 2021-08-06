@@ -1,5 +1,11 @@
+#include "frame_buffer.h"
+#include "serial_port.h"
+
 /* The C function */
-    int sum_of_three(int arg1, int arg2, int arg3)
-    {
-        return arg1 + arg2 + arg3;
-    }
+int sum_of_three(int a, int b, int c) {
+  char buffer[25] = "Welcome to MyminiOS!!!\n";
+  fb_write(buffer, 26);
+  serial_configure(SERIAL_COM1_BASE, Baud_115200);
+  serial_write(SERIAL_COM1_BASE, buffer, 26);
+  return a + b + c;
+}
