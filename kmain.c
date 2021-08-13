@@ -1,11 +1,21 @@
-#include "frame_buffer.h"
-#include "serial_port.h"
+#include "segmentation/gdt.h"
+#include "drivers/serial_port/serial_port.h"
+#include "drivers/frame_buffer/frame_buffer.h"
 
-/* The C function */
-int sum_of_three(int a, int b, int c) {
-  char buffer[25] = "Welcome to MyminiOS!!!\n";
-  fb_write(buffer, 26);
+/* Function to initialize */
+void init() {
+  /* Initialize segment descriptor tables */
+  init_gdt();
+
+  /* Initialize serial port */
   serial_configure(SERIAL_COM1_BASE, Baud_115200);
-  serial_write(SERIAL_COM1_BASE, buffer, 26);
-  return a + b + c;
+}
+
+/* Kernel Main */
+int kmain() {
+  init();
+  char buffer[50] = "Welcome to MyminiOS...This works!!!!!!!\n";
+  fb_write(buffer, 50);
+  serial_write(SERIAL_COM1_BASE, buffer, 50);
+  return 0;
 }
