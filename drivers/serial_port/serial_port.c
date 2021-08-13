@@ -1,4 +1,5 @@
-#include "serial_port.h"
+#include "drivers/io/io.h"
+#include "drivers/serial_port/serial_port.h"
 
 void serial_configure_baud_rate(unsigned short com, unsigned short divisor) {
   /* Tell the serial port to first expect the highest 8 bits, then the lowest
