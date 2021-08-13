@@ -1,11 +1,8 @@
 #ifndef INCLUDE_SERIALPORT_H
 #define INCLUDE_SERIALPORT_H
 
-#pragma once
-#include "io.h"
 
 /* The I/O ports */
-
 /* All the I/O ports are calculated relative to the data port. This is because
  * all serial ports (COM1, COM2, COM3, COM4) have their ports in the same
  * order, but they start at different values.
@@ -102,4 +99,4 @@ void serial_write_byte(unsigned short port, char byteData);
  */
 void serial_configure(unsigned short port, unsigned short baudRate);
 
-#endif /* INCLUDE_IO_H */
+#endif /* INCLUDE_SERIALPORT_H */
