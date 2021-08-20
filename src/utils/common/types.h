@@ -1,6 +1,4 @@
-/** common.h -- Defines typedefs and some global functions.
- *              From JamesM's kernel development tutorials.
- */
+
 #ifndef INCLUDE_TYPES_H
 #define INCLUDE_TYPES_H
 

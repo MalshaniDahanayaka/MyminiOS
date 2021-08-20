@@ -1,7 +1,7 @@
-#include "drivers/io/io.h"
-#include "drivers/serial_port/serial_port.h"
+#include "serial_port.h"
+#include "io.h"
 
-void serial_configure_baud_rate(unsigned short com, unsigned short divisor) {
+void serial_configure_baud_rate(u16int com, u16int divisor) {
   /* Tell the serial port to first expect the highest 8 bits, then the lowest
    * 8 bits. This is done by sending 0x80 to the line command port
    */
@@ -10,7 +10,7 @@ void serial_configure_baud_rate(unsigned short com, unsigned short divisor) {
   outb(SERIAL_DATA_PORT(com), divisor & 0x00FF);
 }
 
-void serial_configure_line(unsigned short com) {
+void serial_configure_line(u16int com) {
   /* Bit:     | 7 | 6 | 5 4 3 | 2 | 1 0 |
    * Content: | d | b | prty  | s | dl  |
    * Value:   | 0 | 0 | 0 0 0 | 0 | 1 1 | = 0x03
@@ -20,7 +20,7 @@ void serial_configure_line(unsigned short com) {
   outb(SERIAL_LINE_COMMAND_PORT(com), 0x03);
 }
 
-void serial_configure_fifo_buffer(unsigned short com) {
+void serial_configure_fifo_buffer(u16int com) {
   /* Bit:     | 7 6 | 5  | 4 | 3   | 2   | 1   | 0 |
    * Content: | lvl | bs | r | dma | clt | clr | e |
    * Value:   | 1 1 | 0  | 0 | 0   | 1   | 1   | 1 | = 0xC7
@@ -28,7 +28,7 @@ void serial_configure_fifo_buffer(unsigned short com) {
   outb(SERIAL_FIFO_COMMAND_PORT(com), 0xC7);
 }
 
-void serial_configure_modem(unsigned short com) {
+void serial_configure_modem(u16int com) {
   /* Bit:     | 7 | 6 | 5  | 4  | 3   | 2   | 1   | 0   |
    * Content: | r | r | af | lb | ao2 | ao1 | rts | dtr |
    * Value:   | 0 | 0 | 0  | 0  | 0   | 0   | 1   | 1 | = 0x03
@@ -36,27 +36,37 @@ void serial_configure_modem(unsigned short com) {
   outb(SERIAL_MODEM_COMMAND_PORT(com), 0x03);
 }
 
-int serial_is_transmit_fifo_empty(unsigned short com) {
+s32int serial_is_transmit_fifo_empty(u16int com) {
   /* 0x20 = 0010 0000 */
   return inb(SERIAL_LINE_STATUS_PORT(com)) & 0x20;
 }
 
-int serial_write(unsigned short com, char *buf, unsigned int len) {
-  unsigned int indexToBuffer = 0;
+/** serial_write:
+ *  writes the contents of the buffer buf of length len to the screen, since the
+ * serial port FIFO queue can hold 14 bytes, we will check if transmit buffer is
+ * empty only if the index is multiple of 8, by doing this we are avoiding
+ * uneccesary spin in checking fifo empty
+ *
+ *  @param buf  Buffer that has contents to be written to screen
+ *  @param len  Length of buffer
+ */
+s32int serial_write(u16int com, s8int *buf, u32int len) {
+  u32int indexToBuffer = 0, count = 0;
   while (indexToBuffer < len) {
-    if (serial_is_transmit_fifo_empty(com)) {
-      serial_write_byte(com, buf[indexToBuffer]);
-      indexToBuffer++;
+    if (indexToBuffer == count) {
+      while (!serial_is_transmit_fifo_empty(com))
+        ;
+      count += SERIAL_FIFO_BUFFER_LENGTH;
     }
+    serial_write_byte(com, buf[indexToBuffer]);
+    indexToBuffer++;
   }
   return 0;
 }
 
-void serial_write_byte(unsigned short port, char byteData) {
-  outb(port, byteData);
-}
+void serial_write_byte(u16int port, s8int byteData) { outb(port, byteData); }
 
-void serial_configure(unsigned short port, unsigned short baudRate) {
+void serial_configure(u16int port, u16int baudRate) {
   serial_configure_baud_rate(port, baudRate);
   serial_configure_line(port);
   serial_configure_fifo_buffer(port);

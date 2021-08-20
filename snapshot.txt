@@ -1,14 +1,14 @@
-Welcome to MyminiOS...This works!!!!!!!
-ß
-kernel /boot/kernel.elf
-   [Multiboot-elf, <0x100000:0x9c4:0x0>, <0x101000:0x10:0x200a>, shtab=0x104208
-, entry=0x100734]
-
-
-
-
-
-
+recieved timer interrupt, tick = 3323
+Hello MyminiOS, recieved in32
+recieved timer interrupt, tick = 3324
+Hello MyminiOS, recieved in32
+recieved timer interrupt, tick = 3325
+Hello MyminiOS, recieved in32
+recieved timer interrupt, tick = 3326
+Hello MyminiOS, recieved in32
+recieved timer interrupt, tick = 3327
+Hello MyminiOS, recieved in32
+recieved timer interrupt, tick = 3328
 
 
 
