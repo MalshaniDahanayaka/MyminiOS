@@ -2,7 +2,7 @@
 #define INCLUDE_IO_H
 
 #pragma once
-#include "types.h"
+#include "../../utils/common/types.h"
 
 /** outb:
  *  Sends the given data to the given I/O port. Defined in io.s

@@ -1,43 +1,38 @@
 #include "idt.h"
-#include "io.h"
+#include "../io/io.h"
 
-/* Function call to load IDT implemented in assembly.
- * Extern allows to access ASM from this C code.
- */
+
 extern void idt_flush(u32int);
 
-/* 256 interrupts!!! */
+
 idt_entry_t idt_entries[256];
 
-/* When processor enters protected mode the first command you will need to give
- * the two PICs is the initialise command (code 0x11). This command makes the
- * PIC wait for 3 extra "initialisation words" on the data port.
- */
+
 void init_pic() {
-  /* Start the initialization sequence */
+
   outb(PIC1, INITIALISE_COMMAND);
   outb(PIC2, INITIALISE_COMMAND);
 
-  /* Set new interrupt vector offset instead of default oofset */
+  
   outb(PIC1_DATA, PIC1_VECTOR_OFFSET);
   outb(PIC2_DATA, PIC2_VECTOR_OFFSET);
 
-  /* Tell PIC1 there is Slave at PIN 2 (0000 0100) */
+  
   outb(PIC1_DATA, PIC2_PORT_IN_PIC1);
 
-  /* Tell Slave PIC its cascade identity (0000 0010) */
+
   outb(PIC2_DATA, PIC2_CASCADED_IDEN);
 
-  /* Set PICs to operate in 8086/88 (MCS-80/85) mode */
+  
   outb(PIC1_DATA, ICW4_8086);
   outb(PIC2_DATA, ICW4_8086);
 
-  /* Null out the data registers */
+
   outb(PIC1_DATA, 0x0);
   outb(PIC2_DATA, 0x0);
 }
 
-/* Set the value of IDT entry. */
+
 static void idt_set_gate(u8int num, u32int addressISR, u16int segmentSelector,
                          u8int accessGran) {
   idt_entries[num].offset_low = (addressISR & 0xFFFF);
@@ -54,13 +49,10 @@ void init_idt() {
   idt_ptr.limit = sizeof(idt_entry_t) * 256 - 1;
   idt_ptr.base = (u32int)&idt_entries;
 
-  /* Initialise PIC */
+  
   init_pic();
 
-  /* Setting everything to 0 as handler for interrupts above 32 are not set */
-  // memset(&idt_entries, 0, sizeof(idt_entry_t) * 256);
-
-  /* Define handlers for first 32 which are required by processor */
+ 
   idt_set_gate(0, (u32int)isr0, 0x08, 0x8E);   // ISR 0
   idt_set_gate(1, (u32int)isr1, 0x08, 0x8E);   // ISR 1
   idt_set_gate(2, (u32int)isr2, 0x08, 0x8E);   // ISR 2
@@ -94,7 +86,7 @@ void init_idt() {
   idt_set_gate(30, (u32int)isr30, 0x08, 0x8E); // ISR 30
   idt_set_gate(31, (u32int)isr31, 0x08, 0x8E); // ISR 31
 
-  /* Define handlers for 16 interrupt requests by pic */
+  
   idt_set_gate(32, (u32int)irq0, 0x08, 0x8E);  // IRQ 0
   idt_set_gate(33, (u32int)irq1, 0x08, 0x8E);  // IRQ 1
   idt_set_gate(34, (u32int)irq2, 0x08, 0x8E);  // IRQ 2

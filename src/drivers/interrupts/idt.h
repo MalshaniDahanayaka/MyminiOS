@@ -2,7 +2,7 @@
 #define INCLUDE_IDT_H
 
 #pragma once
-#include "types.h"
+#include "../../utils/common/types.h"
 
 /* The processor will sometimes need to signal your kernel. Something major may
  * have happened, such as a divide-by-zero, or a page fault. To do this, it uses

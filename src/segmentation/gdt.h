@@ -2,7 +2,7 @@
 #define INCLUDE_GDT_H
 
 #pragma once
-#include "types.h"
+#include "../utils/common/types.h"
 
 /* This structure contains the value of one GDT entry.
  * We use the attribute 'packed' to tell GCC not to change

@@ -2,7 +2,7 @@
 #define INCLUDE_TIMER_H
 
 #pragma once
-#include "types.h"
+#include "../../utils/common/types.h"
 
 /* Programmable Interval Timer's default frequency is 1.1931MHz, this macro
  * defines desired frequenct

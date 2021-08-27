@@ -1,8 +1,9 @@
 #include "timer.h"
-#include "helpers.h"
-#include "io.h"
-#include "isr.h"
-#include "logger.h"
+#include "../../utils/common/helpers.h"
+#include "../io/io.h"
+#include "../interrupts/isr.h"
+#include "../../utils/logger/logger.h"
+
 
 /* Define a macro for timer interrupt */
 #define IRQ0 32

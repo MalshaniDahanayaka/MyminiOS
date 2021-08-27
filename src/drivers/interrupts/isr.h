@@ -2,7 +2,7 @@
 #define INCLUDE_ISR_H
 
 #pragma once
-#include "types.h"
+#include "../../utils/common/types.h"
 
 typedef struct cpu_state {
   u32int edi;

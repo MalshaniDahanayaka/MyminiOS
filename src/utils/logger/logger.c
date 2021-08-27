@@ -1,6 +1,6 @@
 #include "logger.h"
-#include "frame_buffer.h"
-#include "serial_port.h"
+#include "../../drivers/frame_buffer/frame_buffer.h"
+#include "../../drivers/serial_port/serial_port.h"
 
 void print_screen(s8int *buffer, u32int len) { fb_write(buffer, len); }
 
