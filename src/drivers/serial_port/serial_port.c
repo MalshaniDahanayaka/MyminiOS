@@ -1,5 +1,5 @@
 #include "serial_port.h"
-#include "io.h"
+#include "../io/io.h"
 
 void serial_configure_baud_rate(u16int com, u16int divisor) {
   /* Tell the serial port to first expect the highest 8 bits, then the lowest

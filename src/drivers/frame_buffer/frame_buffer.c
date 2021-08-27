@@ -1,5 +1,5 @@
 #include "frame_buffer.h"
-#include "io.h"
+#include "../io/io.h"
 
 static s8int *fb = (s8int *)FB_BASE_ADDRESS;
 static u16int cursor_pos = 0;

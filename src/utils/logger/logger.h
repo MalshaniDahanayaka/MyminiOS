@@ -2,7 +2,7 @@
 #define INCLUDE_LOGGER_H
 
 #pragma once
-#include "types.h"
+#include "../common/types.h"
 
 /** log:
  *  writes the char array buffer of length len to serial console
