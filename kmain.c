@@ -1,4 +1,4 @@
-#include "src/segmentation/gdt.h"
+#include "src/memory/segmentation/gdt.h"
 #include "src/drivers/interrupts/idt.h"
 #include "src/utils/logger/logger.h"
 #include "src/drivers/serial_port/serial_port.h"
@@ -17,8 +17,17 @@ void init() {
   /* Initialize timer interrupt */
 //  init_timer(TIMER_FREQUENCY);
 
-  /* Initialize serial port */
+  /* Initialize display */
+  init_display();
+
+  /* Configure serial port */
   serial_configure(SERIAL_COM1_BASE, Baud_115200);
+
+  /* Initialize paging */
+  init_paging(kernelPhysicalStart, kernelPhysicalEnd);
+
+  /* Initialize keyboard */
+  init_keyboard();
 }
 
 /* Kernel Main */

@@ -1,32 +1,54 @@
-    global loader                   ; the entry symbol for ELF
-    extern kmain   	             ; the function kmain is defined elsewhere
+
+global loader
+
+
+KERNEL_STACK_SIZE equ 4096
+
+
+MODULEALIGN equ 1 << 0
+
+MEMINFO equ 1 << 1
+
+FLAGS equ MODULEALIGN | MEMINFO
+
+MAGIC_NUMBER equ 0x1BADB002
+
+CHECKSUM equ - (MAGIC_NUMBER + FLAGS)
+
+extern KERNEL_PHYSICAL_START
+
+extern KERNEL_PHYSICAL_END
+
+section .bss
+
+align 4
+
+KERNEL_STACK:
     
-    KERNEL_STACK_SIZE equ 4096      ; size of stack in bytes
-    			
-    MAGIC_NUMBER equ 0x1BADB002     ; define the magic number constant
-    ALIGN_MODULES equ 0x00000001    ; tell GRUB to align modules
-    CHECKSUM     equ -(MAGIC_NUMBER + ALIGN_MODULES )  
-    				     ; calculate the checksum
-                                    ; (magic number + checksum + flags should equal 0)
+    resb KERNEL_STACK_SIZE
+
+
+section .text
+
+align 4
+   
+    dd MAGIC_NUMBER
     
-    section .bss
-    align 4                         ; align at 4 bytes
-    kernel_stack:                   ; label points to beginning of memory
-        resb KERNEL_STACK_SIZE      ; reserve stack for the kernel
+    dd FLAGS
+
+    dd CHECKSUM
+
+loader:
     
-        
-    section .text                   ; start of the text (code) section
-    align 4                         ; the code must be 4 byte aligned
-        dd MAGIC_NUMBER             ; write the magic number to the machine code,
-        dd ALIGN_MODULES            ; write the align modules instruction
-        dd CHECKSUM                 ; write the checksum
-    
-    mov esp, kernel_stack + KERNEL_STACK_SIZE       ; point esp to the start of the stack (end of memory area)
-    
-    loader:                         ; the loader label (defined as entry point in linker script)
-	
-    	push ebx                    ; multiboot info in ebx 
-    	call kmain                  ; call the function, the result will be in eax
-	
+    mov esp, KERNEL_STACK + KERNEL_STACK_SIZE
+
+    extern kmain
+
+    push $KERNEL_PHYSICAL_END
+
+    push $KERNEL_PHYSICAL_START
+
+    call kmain
     .loop:
-        jmp .loop                   ; loop forever
+
+      jmp .loop
