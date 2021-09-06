@@ -1,4 +1,4 @@
-OBJECTS = loader.o kmain.o src/drivers/io/io.o src/drivers/frame_buffer/frame_buffer.o src/drivers/serial_port/serial_port.o src/segmentation/gdt.o src/segmentation/gdt_asm.o src/utils/common/helpers.o src/drivers/interrupts/idt.o src/drivers/interrupts/idt_asm.o src/drivers/interrupts/isr.o src/drivers/interrupts/isr_asm.o src/utils/logger/logger.o src/drivers/timer/timer.o src/drivers/interrupts/keyboard.o
+OBJECTS = loader.o kmain.o src/drivers/io/io.o src/drivers/frame_buffer/frame_buffer.o src/drivers/serial_port/serial_port.o src/segmentation/gdt.o src/segmentation/gdt_asm.o src/utils/common/helpers.o src/drivers/interrupts/idt.o src/drivers/interrupts/idt_asm.o src/drivers/interrupts/isr.o src/drivers/interrupts/isr_asm.o src/utils/logger/logger.o src/drivers/timer/timer.o src/drivers/interrupts/keyboard.o src/memory/heap/kheap.o src/memory/paging/paging.o src/memory/paging_enable.o
 CC = gcc
 CFLAGS = -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
 		 -nostartfiles -nodefaultlibs -Wall -Wextra -Werror -c
