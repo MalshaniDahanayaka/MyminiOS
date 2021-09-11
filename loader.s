@@ -16,8 +16,9 @@ MAGIC_NUMBER equ 0x1BADB002
 CHECKSUM equ - (MAGIC_NUMBER + FLAGS)
 
 extern KERNEL_PHYSICAL_START
-
 extern KERNEL_PHYSICAL_END
+extern kernel_virtual_start
+extern kernel_virtual_end
 
 section .bss
 
@@ -45,8 +46,9 @@ loader:
     extern kmain
 
     push $KERNEL_PHYSICAL_END
-
     push $KERNEL_PHYSICAL_START
+    push $kernel_virtual_end
+    push $kernel_virtual_start
 
     call kmain
     .loop:
