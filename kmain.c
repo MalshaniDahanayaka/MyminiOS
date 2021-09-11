@@ -7,7 +7,7 @@
 #include "multiboot.h"
 
 /* Function to initialize */
-void init() {
+void init(u32int kernelPhysicalStart, u32int kernelPhysicalEnd,u32int kernel_virtual_end ,u32int kernel_virtual_start) {
   /* Initialize segment descriptor tables */
   init_gdt();
 
@@ -24,15 +24,16 @@ void init() {
   serial_configure(SERIAL_COM1_BASE, Baud_115200);
 
   /* Initialize paging */
-  init_paging(kernelPhysicalStart, kernelPhysicalEnd);
+  init_paging(kernelPhysicalStart, kernelPhysicalEnd ,kernel_virtual_end ,kernel_virtual_start);
 
   /* Initialize keyboard */
   init_keyboard();
 }
 
+
 /* Kernel Main */
 s32int kmain(unsigned int ebx) {
-  init();
+  init(kernelPhysicalStart, kernelPhysicalEnd,kernel_virtual_end ,kernel_virtual_start);
   multiboot_info_t *mbinfo = (multiboot_info_t *) ebx;
   	multiboot_module_t* modules = (multiboot_module_t*) mbinfo->mods_addr; 
   	unsigned int address_of_module = modules->mod_start;
