@@ -17,6 +17,8 @@ u32int nframes;
 // Defined in kheap.c
 extern u32int g_KerNelPhysicalAddressStart;
 extern u32int g_CurrentPhysicalAddressTop;
+extern u32int g_kernel_virtualAddressStart;
+extern u32int g_kernel_virtualAddressEnd;
 
 // Macros used in the bitset algorithms.
 #define INDEX_FROM_BIT(a) (a / 32)
@@ -124,6 +126,7 @@ void custom_memset(u8int *address, u32int val, u32int size) {
 void init_paging(u32int kerNelPhysicalStart, u32int kernelPhysicalEnd) {
 
   set_physical_address(kerNelPhysicalStart, kernelPhysicalEnd);
+  set_virtual address(g_kernel_virtualAddressStart,g_kernel_virtualAddressEnd);
 
   /* The size of physical memory.
    * Assuming it is 16MB big setting memEndPage to 16MB + 3GB so that we can
@@ -139,10 +142,7 @@ void init_paging(u32int kerNelPhysicalStart, u32int kernelPhysicalEnd) {
   g_kernelDirectory = (page_directory_t *)kmalloc_a(sizeof(page_directory_t));
   g_currentDirectory = g_kernelDirectory;
 
-  /* We need to identity map (phys addr = virt addr) from 0x0 to the end of
-   * used memory, so we can access this transparently, as if paging wasn't
-   * enabled.
-   */
+
   u32int i = 0;
   while (i < (g_KerNelPhysicalAddressStart & 0xFFFFF000)) {
     /* identity map 1 MB which is BIOS */
@@ -151,11 +151,7 @@ void init_paging(u32int kerNelPhysicalStart, u32int kernelPhysicalEnd) {
   }
 
   while (i < g_CurrentPhysicalAddressTop) {
-    /* Since we have already relocated kernel to 1MB after 3GB in linker script,
-     * we can add entry to page table by adding 3Gb to all the physical
-     * address.
-     * Kernel code is readable but not writeable from userspace.
-     */
+
     alloc_frame_virtual(get_page(i + 0xC0100000, 1, g_kernelDirectory), i, 0,
                         0);
     i += 0x1000;
@@ -203,9 +199,7 @@ page_t *get_page(u32int address, u8int make, page_directory_t *dir) {
 
 // Page Fault interrupt handler function
 void page_fault(registers_t regs) {
-  /* A page fault has occurred.
-   * The faulting address is stored in the CR2 register.
-   */
+
   u32int faultingAddress;
   asm volatile("mov %%cr2, %0" : "=r"(faultingAddress));
 
@@ -259,8 +253,5 @@ void page_fault(registers_t regs) {
   // 0);
 #endif
 
-  /* Optionally we can stop execution here, disabling this so that
-   * paging can be tested by doing the page fault
-   */
-  // while (1) {}
+  
 }

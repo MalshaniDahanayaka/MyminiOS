@@ -12,7 +12,7 @@ void set_physical_address(u32int kerNelPhysicalStart,
 u32int kmalloc_int(u32int size, u32int align, u32int *pAddrPtr) {
   if (align == 1) {
     if (g_CurrentPhysicalAddressTop & 0x00000FFF) {
-      // Align the placement address;
+      
       g_CurrentPhysicalAddressTop &= 0xFFFFF000;
       g_CurrentPhysicalAddressTop += 0x1000;
     }
