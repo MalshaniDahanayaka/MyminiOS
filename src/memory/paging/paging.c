@@ -20,7 +20,11 @@ extern u32int g_CurrentPhysicalAddressTop;
 extern u32int g_kernel_virtualAddressStart;
 extern u32int g_kernel_virtualAddressEnd;
 
-// Macros used in the bitset algorithms.
+
+
+extern void copy_page_physical(uint32_t, uint32_t);
+
+/* Macros used in the bitset algorithms */
 #define INDEX_FROM_BIT(a) (a / 32)
 #define OFFSET_FROM_BIT(a) (a % 32)
 
@@ -29,48 +33,45 @@ extern u32int g_kernel_virtualAddressEnd;
  */
 void page_fault(registers_t regs);
 
-// Static function to set a bit in the frames bitset
-static void set_frame(u32int frameAddr) {
-  u32int frame = frameAddr / 0x1000;
-  u32int idx = INDEX_FROM_BIT(frame);
-  u32int off = OFFSET_FROM_BIT(frame);
-  frames[idx] |= (0x1 << off);
+/* Function to mark corresponding frame in the variable as not free */
+static void set_frame(uint32_t frameAddr) {
+  uint32_t frame = frameAddr / 0x1000;
+  uint32_t idx = INDEX_FROM_BIT(frame);
+  uint32_t off = OFFSET_FROM_BIT(frame);
+  g_FrameIndexArray[idx] |= (0x1 << off);
 }
 
-// Static function to clear a bit in the frames bitset
-static void clear_frame(u32int frameAddr) {
-  u32int frame = frameAddr / 0x1000;
-  u32int idx = INDEX_FROM_BIT(frame);
-  u32int off = OFFSET_FROM_BIT(frame);
-  frames[idx] &= ~(0x1 << off);
+/* Function to mark corresponding frame in the variable as free */
+static void clear_frame(uint32_t frameAddr) {
+  uint32_t frame = frameAddr / 0x1000;
+  uint32_t idx = INDEX_FROM_BIT(frame);
+  uint32_t off = OFFSET_FROM_BIT(frame);
+  g_FrameIndexArray[idx] &= ~(0x1 << off);
 }
 
-// Static function to find the first free frame.
-static s32int first_frame() {
-  u32int i, j;
-  for (i = 0; i < INDEX_FROM_BIT(nframes); ++i) {
-    if (frames[i] != 0xFFFFFFFF) {
-      // at least one bit is free here.
+/* Utility function to get index of first free frame */
+static int32_t first_frame() {
+  uint32_t i, j;
+  for (i = 0; i < INDEX_FROM_BIT(g_NumOfFrames); ++i) {
+    if (g_FrameIndexArray[i] != 0xFFFFFFFF) {
       for (j = 0; j < 32; ++j) {
-        u32int toTest = 0x1 << j;
-        if (!(frames[i] & toTest)) {
+        uint32_t toTest = 0x1 << j;
+        if (!(g_FrameIndexArray[i] & toTest)) {
           return ((i * 32) + j);
         }
       }
     }
   }
-  // nothing free
+  /* No free frames available */
   return -1;
 }
 
-// Function to allocate a frame with identity map.
-void alloc_frame_identity(page_t *page, u32int isKernel, u32int isWriteable) {
+void alloc_frame(page_t *page, uint32_t isKernel, uint32_t isWriteable) {
   if (page->frame != 0) {
     return;
   } else {
-    u32int idx = first_frame();
-    if (idx == (u32int)-1) {
-      // PANIC! no free frames!!
+    uint32_t idx = first_frame();
+    if (idx == (uint32_t)-1) {
       print_screen("No Free Frame, Kernel Panic");
       while (1) {
       }
@@ -83,31 +84,8 @@ void alloc_frame_identity(page_t *page, u32int isKernel, u32int isWriteable) {
   }
 }
 
-void alloc_frame_virtual(page_t *page, u32int physicalAddress, u32int isKernel,
-                         u32int isWriteable) {
-  if (page->frame != 0) {
-    return;
-  } else {
-    u32int idx = first_frame();
-    if (idx == (u32int)-1) {
-      // PANIC! no free frames!!
-      print_screen("No Free Frame, Kernel Panic");
-      while (1) {
-      }
-    }
-    set_frame(idx * 0x1000);
-
-    idx = ((physicalAddress / 0x1000) / 32) + ((physicalAddress / 0x1000) % 32);
-    page->present = 1;
-    page->rw = (isWriteable) ? 1 : 0;
-    page->user = (isKernel) ? 0 : 1;
-    page->frame = idx;
-  }
-}
-
-// Function to deallocate a frame.
 void free_frame(page_t *page) {
-  u32int frame;
+  uint32_t frame;
   if (!(frame = page->frame)) {
     return;
   } else {
@@ -116,80 +94,97 @@ void free_frame(page_t *page) {
   }
 }
 
-void custom_memset(u8int *address, u32int val, u32int size) {
-  for (u32int i = 0; i < size; ++i) {
-    *address = val;
-    ++address;
-  }
-}
+void init_paging(uint32_t kernelPhysicalEnd) {
 
-void init_paging(u32int kerNelPhysicalStart, u32int kernelPhysicalEnd) {
+  set_physical_address_top(kernelPhysicalEnd);
 
-  set_physical_address(kerNelPhysicalStart, kernelPhysicalEnd);
-  set_virtual address(g_kernel_virtualAddressStart,g_kernel_virtualAddressEnd);
-
-  /* The size of physical memory.
-   * Assuming it is 16MB big setting memEndPage to 16MB + 3GB so that we can
-   * relocate kernel to 3GB
+  /*
+   * The size of physical memory.
+   * Assuming it is KHEAP_MAX_ADDRESS big
    */
-  u32int memEndPage = 0xC1000000;
+  uint32_t memPageEnd = KHEAP_MAX_ADDRESS;
 
-  nframes = memEndPage / 0x1000;
-  frames = (u32int *)kmalloc(INDEX_FROM_BIT(nframes) + 1);
-  custom_memset((u8int *)frames, 0, INDEX_FROM_BIT(nframes));
+  g_NumOfFrames = (memPageEnd / 0x1000) + 1;
+  g_FrameIndexArray = (uint32_t *)kmalloc(INDEX_FROM_BIT(g_NumOfFrames));
+  custom_memset((uint8_t *)g_FrameIndexArray, 0, INDEX_FROM_BIT(g_NumOfFrames));
 
-  // Let's make a page directory.
-  g_kernelDirectory = (page_directory_t *)kmalloc_a(sizeof(page_directory_t));
-  g_currentDirectory = g_kernelDirectory;
+  /* Create a page directory for kernel and set it as curent page directory */
+  uint32_t phys;
+  g_kernelDirectory =
+      (page_directory_t *)kmalloc_ap(sizeof(page_directory_t), &phys);
+  custom_memset((uint8_t *)g_kernelDirectory, 0, sizeof(page_directory_t));
+  /*
+   * Get the offset of tablesPhysical from the start of the page_directory_t
+   * structure.
+   */
+  uint32_t offset =
+      (uint32_t)g_kernelDirectory->tablesPhysical - (uint32_t)g_kernelDirectory;
+  g_kernelDirectory->physicalAddr = phys + offset;
 
+  /*
+   * Call to get pages only forces page tables to be created. We will map them
+   * before we actually allocate
+   */
+  uint32_t i = 0;
+  for (i = KHEAP_START; i < KHEAP_START + KHEAP_INITIAL_SIZE; i += 0x1000)
+    get_page(i, 1, g_kernelDirectory);
 
-  u32int i = 0;
-  while (i < (g_KerNelPhysicalAddressStart & 0xFFFFF000)) {
-    /* identity map 1 MB which is BIOS */
-    alloc_frame_identity(get_page(i, 1, g_kernelDirectory), 0, 0);
-    i += 0x1000;
+  /*
+   * We need to identity map (phys addr = virt addr) from 0x0 to the end of
+   * used memory, so we can access this transparently, as if paging wasn't
+   * enabled.
+   */
+  for (i = 0; i < g_CurrentPhysicalAddressTop + 0x1000; i += 0x1000) {
+    /* Setting page readable but not writeable from userspace */
+    alloc_frame(get_page(i, 1, g_kernelDirectory), 0, 0);
   }
 
-  while (i < g_CurrentPhysicalAddressTop) {
-
-    alloc_frame_virtual(get_page(i + 0xC0100000, 1, g_kernelDirectory), i, 0,
-                        0);
-    i += 0x1000;
+  /* Now allocate those pages for heap */
+  for (i = KHEAP_START; i < KHEAP_START + KHEAP_INITIAL_SIZE; i += 0x1000) {
+    alloc_frame(get_page(i, 1, g_kernelDirectory), 0, 0);
   }
-  // Before we enable paging, we must register our page fault handler.
+
+  /* Register our page fault handler */
   register_interrupt_handler(14, page_fault);
 
-  // Now, enable paging!
+  /* Enable paging! */
   switch_page_directory(g_kernelDirectory);
+
+  /*  Initialise the kernel heap */
+  create_kernel_heap(KHEAP_START, KHEAP_START + KHEAP_INITIAL_SIZE,
+                     KHEAP_MAX_ADDRESS);
+
+  /* Switch directory */
+  switch_page_directory(clone_directory(g_kernelDirectory));
 }
 
 void switch_page_directory(page_directory_t *dir) {
   g_currentDirectory = dir;
-  // Write page table physical address to cr3
-  asm volatile("mov %0, %%cr3" ::"r"(&dir->tablesPhysical));
-  u32int cr0;
-  // Read cr0 register to variable cr0
+  /* Write page table physical address to cr3 */
+  asm volatile("mov %0, %%cr3" ::"r"(dir->physicalAddr));
+  uint32_t cr0;
+  /* Read cr0 register to variable cr0 */
   asm volatile("mov %%cr0, %0" : "=r"(cr0));
-  // Enable paging!
+  /* Set enable paging bit of the cr0 variable ! */
   cr0 |= 0x80000000;
-  // Write back to cr0
+  /* Write back cr0 variable value to cr0 register */
   asm volatile("mov %0, %%cr0" ::"r"(cr0));
 }
 
-page_t *get_page(u32int address, u8int make, page_directory_t *dir) {
-  // Turn the address into an index.
+page_t *get_page(uint32_t address, uint8_t make, page_directory_t *dir) {
+  /* Turn the address into an index */
   address /= 0x1000;
-  // Find the page table containing this address.
-  u32int tableIdx = address / 1024;
-  // If this table is already assigned
+  /* Find the page table containing this address */
+  uint32_t tableIdx = address / 1024;
+  /* Return page if it is already created */
   if (dir->tables[tableIdx]) {
     return &dir->tables[tableIdx]->pages[address % 1024];
   } else if (make) {
-    u32int tmp;
+    uint32_t tmp;
     dir->tables[tableIdx] =
         (page_table_t *)kmalloc_ap(sizeof(page_table_t), &tmp);
-    custom_memset((u8int *)dir->tables[tableIdx], 0, 0x1000);
-    // PRESENT, RW, US.
+    custom_memset((uint8_t *)dir->tables[tableIdx], 0, 0x1000);
+    /* PRESENT, RW, US. */
     dir->tablesPhysical[tableIdx] = tmp | 0x7;
     return &dir->tables[tableIdx]->pages[address % 1024];
   } else {
@@ -197,41 +192,44 @@ page_t *get_page(u32int address, u8int make, page_directory_t *dir) {
   }
 }
 
-// Page Fault interrupt handler function
+/* Page Fault interrupt handler function */
 void page_fault(registers_t regs) {
-
-  u32int faultingAddress;
+  /*
+   * A page fault has occurred.
+   * The faulting address is stored in the CR2 register.
+   */
+  uint32_t faultingAddress;
   asm volatile("mov %%cr2, %0" : "=r"(faultingAddress));
 
   /* The error code gives us details of what happened. */
-  // Page not present
-  u32int present = !(regs.stack_contents.err_code & 0x1);
-  // Write operation?
-  u32int rWrite = regs.stack_contents.err_code & 0x2;
-  // Processor was in user-mode?
-  u32int uMode = regs.stack_contents.err_code & 0x4;
-  // Overwritten CPU-reserved bits of page entry?
-  u32int reserved = regs.stack_contents.err_code & 0x8;
-  // Caused by an instruction fetch?
-  u32int iFetch = regs.stack_contents.err_code & 0x10;
+  /* Page not present */
+  uint32_t present = !(regs.stack_contents.err_code & 0x1);
+  /* Read Only */
+  uint32_t rWrite = regs.stack_contents.err_code & 0x2;
+  /* Accessing kernel page from User mode */
+  uint32_t uMode = regs.stack_contents.err_code & 0x4;
+  /* Overwritten CPU-reserved bits of page entry */
+  uint32_t reserved = regs.stack_contents.err_code & 0x8;
+  /* Caused by an instruction fetch */
+  uint32_t iFetch = regs.stack_contents.err_code & 0x10;
 
-  // Output an error message.
   print_screen("Page fault! ( ");
   print_serial("Page fault! ( ");
   if (present) {
     print_screen("not present ");
-  }
-  if (rWrite) {
-    print_screen("read-only ");
-  }
-  if (uMode) {
-    print_screen("user-mode ");
-  }
-  if (reserved) {
-    print_screen("reserved ");
-  }
-  if (iFetch) {
-    print_screen("instruction fetch ");
+  } else {
+    if (rWrite) {
+      print_screen("read-only ");
+    }
+    if (uMode) {
+      print_screen("user-mode ");
+    }
+    if (reserved) {
+      print_screen("reserved ");
+    }
+    if (iFetch) {
+      print_screen("instruction fetch ");
+    }
   }
   print_screen(") at address = ");
   print_screen(integer_to_string(faultingAddress));
@@ -247,11 +245,88 @@ void page_fault(registers_t regs) {
   print_serial(integer_to_string(faultingAddress));
   print_serial("\n");
 
-// For testing we will allocate frame when there is page not found fault
+/* For testing we will allocate frame when there is page not found fault */
 #if 1
-  // alloc_frame(get_page(g_CurrentPhysicalAddressTop, 1, g_kernelDirectory), 0,
-  // 0);
+  alloc_frame(get_page(faultingAddress, 1, g_kernelDirectory), 0, 0);
 #endif
 
-  
+  /* Optionally we can stop execution here, disabling this so that paging can
+   * be tested by doing the page fault
+   */
+  // while (1) {}
+}
+
+/*
+ * Utility function to clone page table
+ *
+ * TODO: Implement COW (Copy on Write) instead of copying the full table
+ */
+static page_table_t *clone_table(page_table_t *src, uint32_t *physAddr) {
+  page_table_t *table =
+      (page_table_t *)kmalloc_ap(sizeof(page_table_t), physAddr);
+  custom_memset((uint8_t *)table, 0, sizeof(page_directory_t));
+
+  for (uint32_t i = 0; i < 1024; ++i) {
+    /* If frame exist, clone it */
+    if (src->pages[i].frame) {
+      /*
+       * kernel mode and user mode flags here doesn't matter as we set them
+       * based on flags in source page
+       */
+      alloc_frame(&table->pages[i], 0, 0);
+      /* Copy permissions */
+      if (src->pages[i].present)
+        table->pages[i].present = 1;
+      if (src->pages[i].rw)
+        table->pages[i].rw = 1;
+      if (src->pages[i].user)
+        table->pages[i].user = 1;
+      if (src->pages[i].accessed)
+        table->pages[i].accessed = 1;
+      if (src->pages[i].dirty)
+        table->pages[i].dirty = 1;
+      /*
+       * Physically copy the data across. This function is in paging.s as it
+       * requires paging to be disabled
+       */
+      copy_page_physical(src->pages[i].frame * 0x1000,
+                         table->pages[i].frame * 0x1000);
+    }
+  }
+  return table;
+}
+
+page_directory_t *clone_directory(page_directory_t *src) {
+  uint32_t phys;
+  page_directory_t *dir =
+      (page_directory_t *)kmalloc_ap(sizeof(page_directory_t), &phys);
+  custom_memset((uint8_t *)dir, 0, sizeof(page_directory_t));
+
+  /*
+   * Get the offset of tablesPhysical from the start of the page_directory_t
+   * structure.
+   */
+  uint32_t offset = (uint32_t)dir->tablesPhysical - (uint32_t)dir;
+
+  /* Then the physical address of dir->tablesPhysical is: */
+  dir->physicalAddr = phys + offset;
+
+  /* Clone page table */
+  for (uint32_t i = 0; i < 1024; ++i) {
+    /* If table entry doesn't exist skip it */
+    if (!src->tables[i])
+      continue;
+
+    /* If source table is kernel table the don't copy just use the same table */
+    if (g_kernelDirectory->tables[i] == src->tables[i]) {
+      dir->tables[i] = src->tables[i];
+      dir->tablesPhysical[i] = src->tablesPhysical[i];
+    } else {
+      uint32_t phys = 0;
+      dir->tables[i] = clone_table(src->tables[i], &phys);
+      /* PRESENT, RW, US. */
+      dir->tablesPhysical[i] = phys | 0x07;
+    }
+  }
+  return dir;
 }
