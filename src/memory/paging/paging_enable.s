@@ -1,48 +1,31 @@
-global load_page_directory
-global enable_paging
-global boot_page_directory
+[GLOBAL copy_page_physical]
+copy_page_physical:
+    push ebx              ; According to __cdecl, we must preserve the contents of EBX.
+    pushf                 ; push EFLAGS, so we can pop it and reenable interrupts
+                          ; later, if they were enabled anyway.
+    cli                   ; Disable interrupts, so we aren't interrupted.
+                          ; Load these in BEFORE we disable paging!
+    mov ebx, [esp+12]     ; Source address
+    mov ecx, [esp+16]     ; Destination address
 
-PAGING_PRESENT equ 1b
-PAGING_WRITABLE equ 10b
-PAGING_USER_ACCESSIBLE equ 100b
-PAGING_SIZE_4MB equ 10000000b
-; identity map 0x00000000 - 0x00400000 (first 4MB) which includes kernel
-; and paging data structures
+    mov edx, cr0          ; Get the control register...
+    and edx, 0x7fffffff   ; and...
+    mov cr0, edx          ; Disable paging.
 
-section .data
-align 4096
-boot_page_directory:
-  pde_frame_addr equ 0x0
-  dd (pde_frame_addr & 0xfff00000) + (PAGING_PRESENT | PAGING_WRITABLE | PAGING_SIZE_4MB)
-  times 0x3ff dd 0       ; allocate remaining page directory entries
+    mov edx, 1024         ; 1024*4bytes = 4096 bytes
 
-; align 4096
-; boot_page_table:
-; %assign frame_addr 0
-; %rep 0x300
-;   dd frame_addr | (PAGING_PRESENT | PAGING_WRITABLE | PAGING_USER_ACCESSIBLE)
-;   %assign frame_addr frame_addr+0x1000
-; %endrep
-;   times 0x100 dd 0
+.loop:
+    mov eax, [ebx]        ; Get the word at the source address
+    mov [ecx], eax        ; Store it at the dest address
+    add ebx, 4            ; Source address += sizeof(word)
+    add ecx, 4            ; Dest address += sizeof(word)
+    dec edx               ; One less word to do
+    jnz .loop
 
-section .text
-load_page_directory:    ; put &boot_page_directory in high 20 bits of cr3 register
-  mov eax, [esp+4]
-  mov ebx, cr3
-  and ebx, 0xfff        ; zero out existing 20 high bits
-  and eax, 0xfffff000
-  or ebx, eax
-  mov cr3, ebx
-  ret
+    mov edx, cr0          ; Get the control register again
+    or  edx, 0x80000000   ; and...
+    mov cr0, edx          ; Enable paging.
 
-enable_paging:
-  ; enable 4MB paging
-  mov eax, cr4
-  or eax, 0x10
-  mov cr4, eax
-
-  ; enable paging (PG bit)
-  mov eax, cr0
-  or eax, 0x80000001  ; set PE (bit 0) and PG (bit 31)
-  mov cr0, eax
-  ret
+    popf                  ; Pop EFLAGS back.
+    pop ebx               ; Get the original value of EBX back.
+    ret
